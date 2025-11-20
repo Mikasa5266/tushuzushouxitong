@@ -1,6 +1,10 @@
 <template>
     <div>
-        <Table :data-source="dataSource" :columns="columns">
+        <List justify-content="center" align-items="center">
+            <InputSearch placeholder="请输入想要查询的用户名称" v-model:value="WhatSearch" @search="onSearch" style="width: 50%;" size="large" enter-button>
+            </InputSearch>
+        </List>
+        <Table :data-source="tempDS" :columns="columns">
             <template #bodyCell="{ record, column, text }">
                 <template
                     v-if="typeof column.dataIndex === 'string' && ['customerNum', 'customerName', 'customerTelNum', 'customerGender', 'customerGender', 'IsMember'].includes(column.dataIndex)">
@@ -28,7 +32,9 @@
 
 <script setup lang="ts">
 import List from '@/components/List.vue';
-import { Input, Table } from 'ant-design-vue';
+import { Input, InputSearch, Table } from 'ant-design-vue';
+import type { Data } from 'ant-design-vue/es/_util/type';
+import type { DataIndex } from 'ant-design-vue/es/vc-table/interface';
 import { reactive, ref } from 'vue';
 //数据信息
 interface DataItems {
@@ -120,6 +126,86 @@ const dataSource = ref<DataItems[]>([
         customerGender: '女',
         IsMember: '否',
     }])
+const tempDS = ref<DataItems[]>([{
+    key: '1',
+    customerNum: 'C001',
+    customerName: '张伟',
+    customerTelNum: '13812345678',
+    customerGender: '男',
+    IsMember: '是'
+},
+{
+    key: '2',
+    customerNum: 'C002',
+    customerName: '李娜',
+    customerTelNum: '13798765432',
+    customerGender: '女',
+    IsMember: '否',
+},
+{
+    key: '3',
+    customerNum: 'C003',
+    customerName: '王磊',
+    customerTelNum: '13955551234',
+    customerGender: '男',
+    IsMember: '是',
+},
+{
+    key: '4',
+    customerNum: 'C004',
+    customerName: '赵敏',
+    customerTelNum: '13666668888',
+    customerGender: '女',
+    IsMember: '是',
+},
+{
+    key: '5',
+    customerNum: 'C005',
+    customerName: '刘强',
+    customerTelNum: '13577774444',
+    customerGender: '男',
+    IsMember: '是',
+},
+{
+    key: '6',
+    customerNum: 'C006',
+    customerName: '陈静',
+    customerTelNum: '18899996666',
+    customerGender: '女',
+    IsMember: '是',
+},
+{
+    key: '7',
+    customerNum: 'C007',
+    customerName: '孙浩',
+    customerTelNum: '15844447777',
+    customerGender: '男',
+    IsMember: '否',
+},
+{
+    key: '8',
+    customerNum: 'C008',
+    customerName: '周芳',
+    customerTelNum: '18733335555',
+    customerGender: '女',
+    IsMember: '否',
+},
+{
+    key: '9',
+    customerNum: 'C009',
+    customerName: '吴迪',
+    customerTelNum: '13188889999',
+    customerGender: '男',
+    IsMember: '否',
+},
+{
+    key: '10',
+    customerNum: 'C010',
+    customerName: '杨柳',
+    customerTelNum: '15022223333',
+    customerGender: '女',
+    IsMember: '否',
+}])
 const columns = [
     { title: '客户编号', dataIndex: 'customerNum', key: 'customerNum', width: 150 },
     { title: '客户姓名', dataIndex: 'customerName', key: 'customerName', width: 150 },
@@ -134,25 +220,31 @@ const columns = [
         fixed: 'right' as 'right'
     }
 ]
+const WhatSearch = ref('')
 const editableData = reactive<Record<string, DataItems | undefined>>({})
 
 const edit = (key: string) => {
-  const row = dataSource.value.find(item => key === item.key)
-  editableData[key] = JSON.parse(JSON.stringify(row))
+    const row = dataSource.value.find(item => key === item.key)
+    editableData[key] = JSON.parse(JSON.stringify(row))
 }
 const save = (key: string) => {
-  const row = dataSource.value.find(item => key === item.key)
-  if (row) Object.assign(row, editableData[key]);
-  delete editableData[key];
+    const row = dataSource.value.find(item => key === item.key)
+    if (row) Object.assign(row, editableData[key]);
+    delete editableData[key];
 };
 const cancel = (key: string) => {
-  delete editableData[key];
+    delete editableData[key];
 };
+const onSearch = () => {
+    const result = dataSource.value.filter((item) => {
+        return item.customerName.includes(WhatSearch.value)
+    })
+    tempDS.value = JSON.parse(JSON.stringify(result))
+}
 </script>
 
 <style lang="scss" scoped>
-
 .editable-row-operations a {
-  margin-right: 8px;
+    margin-right: 8px;
 }
 </style>
