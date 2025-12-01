@@ -4,13 +4,13 @@
             <InputSearch placeholder="请输入想要查询的用户名称" v-model:value="WhatSearch" @search="onSearch" style="width: 50%;" size="large" enter-button>
             </InputSearch>
         </List>
-        <Table :data-source="tempDS" :columns="columns">
+        <Table :data-source="tempCS" :columns="columns">
             <template #bodyCell="{ record, column, text }">
                 <template
                     v-if="typeof column.dataIndex === 'string' && ['customerNum', 'customerName', 'customerTelNum', 'customerGender', 'customerGender', 'IsMember'].includes(column.dataIndex)">
                     <div>
                         <Input v-if="editableData[record.key]"
-                            v-model:value="editableData[record.key]![column.dataIndex as keyof DataItems]"></Input>
+                            v-model:value="editableData[record.key]![column.dataIndex as keyof Customer]"></Input>
                         <span v-else>{{ text }}</span>
                     </div>
                 </template>
@@ -37,7 +37,7 @@ import type { Data } from 'ant-design-vue/es/_util/type';
 import type { DataIndex } from 'ant-design-vue/es/vc-table/interface';
 import { reactive, ref } from 'vue';
 //数据信息
-interface DataItems {
+interface Customer {
     key: string,
     customerNum: string,
     customerName: string,
@@ -45,7 +45,7 @@ interface DataItems {
     customerGender: string,
     IsMember: string,
 }
-const dataSource = ref<DataItems[]>([
+const customers = ref<Customer[]>([
     {
         key: '1',
         customerNum: 'C001',
@@ -126,7 +126,7 @@ const dataSource = ref<DataItems[]>([
         customerGender: '女',
         IsMember: '否',
     }])
-const tempDS = ref<DataItems[]>([{
+const tempCS = ref<Customer[]>([{
     key: '1',
     customerNum: 'C001',
     customerName: '张伟',
@@ -221,14 +221,14 @@ const columns = [
     }
 ]
 const WhatSearch = ref('')
-const editableData = reactive<Record<string, DataItems | undefined>>({})
+const editableData = reactive<Record<string, Customer | undefined>>({})
 
 const edit = (key: string) => {
-    const row = dataSource.value.find(item => key === item.key)
+    const row = customers.value.find(item => key === item.key)
     editableData[key] = JSON.parse(JSON.stringify(row))
 }
 const save = (key: string) => {
-    const row = dataSource.value.find(item => key === item.key)
+    const row = customers.value.find(item => key === item.key)
     if (row) Object.assign(row, editableData[key]);
     delete editableData[key];
 };
@@ -236,10 +236,10 @@ const cancel = (key: string) => {
     delete editableData[key];
 };
 const onSearch = () => {
-    const result = dataSource.value.filter((item) => {
+    const result = customers.value.filter((item) => {
         return item.customerName.includes(WhatSearch.value)
     })
-    tempDS.value = JSON.parse(JSON.stringify(result))
+    tempCS.value = JSON.parse(JSON.stringify(result))
 }
 </script>
 

@@ -17,6 +17,11 @@ import { RouterLink } from 'vue-router';
         </List>
     </div>
 </template>
+<style>
+body{
+  overflow: hidden;
+}
+</style>
 <style scoped>
 .wrapper {
   height: 100vh;
@@ -26,14 +31,15 @@ import { RouterLink } from 'vue-router';
 }
 
 .left {
-  background: linear-gradient(135deg, #d7e2e9, #f3f6f9); /* 柔和渐变 */
+  background-color: #FAF7F2;
+  color: #4B5563;
   width: 200px;
 }
 
 .right {
   flex: 1;
-  overflow-x:auto ;
-  background-color: #ffffff;
+  overflow:hidden ;
+  background-color: #FAFAFA;
   padding: 24px;
 }
 
