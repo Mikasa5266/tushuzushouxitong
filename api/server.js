@@ -33,7 +33,7 @@ app.get('/api/books', async (req, res) => {
         // 联表查询，获取书籍类型名称 (书籍类型代码)
         const result = await pool.request().query(`
             SELECT 
-                B.书籍号, B.书籍名, B.书籍状态, B.书籍作者, B.书籍简介, B.书籍单价,
+                B.书籍号, B.书籍名, B.书籍状态, B.书籍作者, B.书籍简介, B.书籍单价,B.书籍类型代码,
                 T.类型名称 AS 书籍类型
             FROM 书籍 B
             LEFT JOIN 书籍类型 T ON B.书籍类型代码 = T.类型代码;
@@ -74,12 +74,13 @@ app.get('/api/books/search', async (req, res) => {
 app.put('/api/books/:id', async (req, res) => {
     const { id } = req.params;
     const { 书籍名, 书籍状态, 书籍作者, 书籍简介, 书籍单价, 书籍类型代码 } = req.body;
-    
+
     try {
         if (!pool) await connectDB();
 
         // 假设前端在编辑时能提供 书籍类型代码 (例如 'LIT')，否则需要前端提供类型名称
         // 这里简化为直接更新主要字段
+        console.log(书籍类型代码)
         await pool.request()
             .input('bookId', sql.Char(12), id)
             .input('bookName', sql.NVarChar(50), 书籍名)
@@ -87,16 +88,15 @@ app.put('/api/books/:id', async (req, res) => {
             .input('bookAuthor', sql.NVarChar(20), 书籍作者)
             .input('bookDetails', sql.NVarChar(50), 书籍简介)
             .input('bookPrice', sql.Float, 书籍单价)
-            // ⚠️ 注意: 书籍类型代码 需要前端在提交编辑时提供或查找
-            // .input('bookKindCode', sql.Char(3), 书籍类型代码) 
+            .input('bookKindCode', sql.Char(3), 书籍类型代码) 
             .query(`
                 UPDATE 书籍 SET 
                     书籍名 = @bookName,
                     书籍状态 = @bookStatus,
                     书籍作者 = @bookAuthor,
                     书籍简介 = @bookDetails,
-                    书籍单价 = @bookPrice
-                    -- 书籍类型代码 = @bookKindCode  -- 如果前端提供，则解除注释
+                    书籍单价 = @bookPrice,
+                    书籍类型代码 = @bookKindCode
                 WHERE 书籍号 = @bookId;
             `);
         res.json({ message: '书籍更新成功' });
@@ -147,10 +147,10 @@ app.get('/api/customers/search', async (req, res) => {
 app.put('/api/customers/:id', async (req, res) => {
     const { id } = req.params;
     const { 姓名, 电话号码, 性别, 会员状态 } = req.body;
-
+    
     try {
         if (!pool) await connectDB();
-        await pool.request()
+        const result = await pool.request()
             .input('customerNum', sql.Char(10), id)
             .input('name', sql.NVarChar(50), 姓名)
             .input('telNum', sql.Char(11), 电话号码)
@@ -164,6 +164,11 @@ app.put('/api/customers/:id', async (req, res) => {
                     会员状态 = @isMember
                 WHERE 顾客号 = @customerNum;
             `);
+        
+        if (result.rowsAffected[0] === 0) {
+            return res.status(404).json({ message: '更新失败：未找到该顾客号' });
+        }
+           
         res.json({ message: '顾客信息更新成功' });
 
     } catch (err) {
@@ -171,14 +176,13 @@ app.put('/api/customers/:id', async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 });
-
 // --- 交易服务接口 (保持不变) ---
 
 // 7. 租书接口 (POST) - 自动生成交易号
 app.post('/api/rent', async (req, res) => {
     // 假设前端传递了 rentDays 字段用于预计天数
     const { customerId, bookId, rentDate, rentDays, deposit } = req.body;
-    
+
     // 映射前端字段到数据库字段
     const 顾客号 = customerId;
     const 书籍号 = bookId;
@@ -188,13 +192,13 @@ app.post('/api/rent', async (req, res) => {
 
     try {
         if (!pool) await connectDB();
-        
+
         const transaction = new sql.Transaction(pool);
         await transaction.begin();
 
         try {
             const request = new sql.Request(transaction);
-            
+
             // 插入租书记录 (自动生成交易号)
             const insertResult = await request
                 .input('cid', sql.Char(10), 顾客号)
@@ -218,7 +222,7 @@ app.post('/api/rent', async (req, res) => {
 
             await transaction.commit();
             res.json({ message: '租书成功', transactionId: newId });
-            
+
         } catch (err) {
             await transaction.rollback();
             throw err;
@@ -247,7 +251,7 @@ app.post('/api/buy', async (req, res) => {
 
         try {
             const request = new sql.Request(transaction);
-            
+
             // 插入买书记录 (自动生成交易号)
             const insertResult = await request
                 .input('cid', sql.Char(10), 顾客号)
