@@ -11,7 +11,7 @@
                     v-if="typeof column.dataIndex === 'string' && ['customerNum', 'customerName', 'customerTelNum', 'customerGender', 'customerGender', 'IsMember'].includes(column.dataIndex)">
                     <div>
                         <Input v-if="editableData[record.key]"
-                            v-model:value="editableData[record.key]![column.dataIndex as keyof Customer]"></Input>
+                            v-model:value="editableData[record.key]![column.dataIndex as keyof CustomerTable]"></Input>
                         <span v-else>{{ text }}</span>
                     </div>
                 </template>
@@ -33,26 +33,16 @@
 
 <script setup lang="ts">
 import List from '@/components/List.vue';
+import type { CustomerTable } from '@/util/type';
 import { Input, InputSearch, message, Table } from 'ant-design-vue';
 import axios from 'axios';
 import { onMounted, reactive, ref } from 'vue';
-//数据信息
-interface Customer {
-    key: string,
-    customerNum: string,
-    customerName: string,
-    customerTelNum: string,
-    customerGender: string,
-    IsMember: string,
-}
-
-const customers = ref<Customer[]>([])
-const tempCS = ref<Customer[]>([])
-
+const customers = ref<CustomerTable[]>([])
+const tempCS = ref<CustomerTable[]>([])
 onMounted(async () => {
     const result = await axios.get('http://localhost:3000/api/customers')
 
-    const arr: Customer[] = result.data.map((item: any) => ({
+    const arr: CustomerTable[] = result.data.map((item: any) => ({
         key: item['顾客号'],
         customerNum: item['顾客号'],
         customerName: item['姓名'],
@@ -80,7 +70,7 @@ const columns = [
     }
 ]
 const WhatSearch = ref('')
-const editableData = reactive<Record<string, Customer | undefined>>({})
+const editableData = reactive<Record<string, CustomerTable | undefined>>({})
 
 const edit = (key: string) => {
     const row = customers.value.find(item => key === item.key)

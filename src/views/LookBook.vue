@@ -9,7 +9,7 @@
         <template
           v-if="typeof column.dataIndex === 'string' && ['bookId', 'bookName', 'bookStatus', 'bookAuthor', 'bookKind', 'bookPrice'].includes(column.dataIndex)">
           <div>
-            <Input v-model:value="editableData[record.key]![column.dataIndex as keyof DataItems]"
+            <Input v-model:value="editableData[record.key]![column.dataIndex as keyof BookTable]"
               v-if="editableData[record.key]" />
             <template v-else>
               {{ text }}
@@ -42,29 +42,17 @@
 
 <script setup lang="ts">
 import List from '@/components/List.vue';
+import type { BookTable } from '@/util/type';
 import { Input, InputSearch, message, Modal, Table } from 'ant-design-vue';
 import type { Data } from 'ant-design-vue/es/_util/type';
 import { Item } from 'ant-design-vue/es/menu';
 import axios from 'axios';
 import { onMounted, reactive, ref, type UnwrapRef } from 'vue';
 
-
-interface DataItems {
-
-  key: string
-  bookId: string,
-  bookName: string,
-  bookStatus: string,
-  bookAuthor: string,
-  bookDetails: string,
-  bookKind: string,
-  bookKindCode:string,
-  bookPrice: number
-}
-const datasource = ref<DataItems[]>([])
-const tempDS = ref<DataItems[]>([])
+const booksSource = ref<BookTable[]>([])
+const tempDS = ref<BookTable[]>([])
 onMounted(async () => {
-  const DS: DataItems[] = []
+  const DS: BookTable[] = []
   const result = await axios.get('http://localhost:3000/api/books')
   for (let i = 0; i < result.data.length; i++) {
     const item = result.data[i]
@@ -83,7 +71,7 @@ onMounted(async () => {
     })
   }
   
-  datasource.value = DS
+  booksSource.value = DS
   tempDS.value = DS
 })
 const columns = [
@@ -105,7 +93,7 @@ const columns = [
 //搜索框数据
 const WhatSearch = ref('')
 //控制可编辑数据显示
-const editableData = reactive<Record<string, DataItems | undefined>>({})
+const editableData = reactive<Record<string, BookTable | undefined>>({})
 //控制对话框（图书详细）显示
 const open = ref(false)
 const currentDetails = ref('')
@@ -113,11 +101,11 @@ const currentDetails = ref('')
 
 //编辑内容
 const edit = (key: string) => {
-  const row = datasource.value.find(item => key === item.key)
+  const row = booksSource.value.find(item => key === item.key)
   editableData[key] = JSON.parse(JSON.stringify(row))
 }
 const save = async (key: string) => {
-  const row = datasource.value.find(item => key === item.key)
+  const row = booksSource.value.find(item => key === item.key)
   const editedData = editableData[key]
 
   if (!row) return
@@ -150,7 +138,7 @@ const openModal = (details: string) => {
 }
 //搜索完成
 const onSearch = () => {
-  const result = datasource.value.filter((item) => {
+  const result = booksSource.value.filter((item) => {
     return item.bookName.includes(WhatSearch.value) || item.bookAuthor.includes(WhatSearch.value)
   })
   tempDS.value = JSON.parse(JSON.stringify(result))

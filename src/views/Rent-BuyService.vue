@@ -122,7 +122,29 @@
                 </List>
             </List>
         </Modal>
-        <Modal v-model:open="openBuydingdan" title="确认订单" :footer="null" centered></Modal>
+        <Modal v-model:open="openBuyOrder" title="确认购买订单" :footer="null" centered>
+        <List align-items="center" justify-content="center">
+            <List align-items="center">
+                <div class="xsxiang">
+                    <span class="xianshi">书籍名称：</span>
+                    
+                    <span class="xianshi">{{ targetBook?.bookName }}</span>
+                </div>
+                <div class="xsxiang">
+                    <span class="xianshi">购买人:</span>
+                    
+                    <span class="xianshi">{{ targetCustomer?.customerName }}</span>
+                </div>
+                <div class="xsxiang">
+                    <span class="xianshi">应付金额：</span>
+                    <span class="xianshi" style="color: red; font-size: 1.2em;">￥{{ targetBook?.bookPrice }}</span>
+                </div>
+            </List>
+            <List justify-content="center" align-items="center">
+                <Button style="width: 400px;" type="primary" @click="submitSaleOrder">确认支付并购买</Button>
+            </List>
+        </List>
+    </Modal>
     </List>
 </template>
 
@@ -324,6 +346,21 @@ const submitDingdan = async () => {
     message.success('租书成功')
     router.push('/')
 }
+//确定购买订单、
+const openBuyOrder = ref(false)
+const submitSaleOrder = async ()=>{
+    const now = Date()
+    const result = await axios.post('http://localhost:3000/api/buy',{
+        customerId:targetCustomer.value?.customerNum,
+        bookId:targetBook.value?.bookId,
+        saleDate:now,
+        salePrice:targetBook.value?.bookPrice,
+        paymentStatus:'已支付'
+    })
+    message.success('买书成功')
+    router.push('/')
+
+}
 //出租按钮
 
 const rentBookButton = () => {
@@ -334,13 +371,14 @@ const rentBookButton = () => {
     }
     openRentdingdan.value = true
 }
+//购买按钮
 const buyBookButton = () => {
     if (!IsSelectB.value) {
         message.error("请先选择图书")
     } else if (!IsSelectC.value) {
         message.error("请先选择客户信息")
     }
-    openfukuan.value = true
+    openBuyOrder.value = true
 }
 
 //付款二维码

@@ -1,16 +1,17 @@
 <script setup lang="ts">
 import List from '@/components/List.vue';
-import { Button } from 'ant-design-vue';
 import { RouterLink } from 'vue-router';
 
 </script>
 <template>
     <div class="wrapper">
         <List class="left" align-items="center">
-            <RouterLink to="/rent" class="links">租借服务</RouterLink>
-            <RouterLink to="/sale" class="links">出售服务</RouterLink>
+            <RouterLink to="/rent-buy" class="links">租借服务</RouterLink>
             <RouterLink to="/books" class="links">图书目录</RouterLink>
             <RouterLink to="/users" class="links">用户目录</RouterLink>
+            <RouterLink to="/rentorder" class="links">租书订单目录</RouterLink>
+            <RouterLink to="/saleorder" class="links">买书订单目录</RouterLink>
+
         </List>
         <List class="right">
             <RouterView/>
