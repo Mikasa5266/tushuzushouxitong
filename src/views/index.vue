@@ -6,11 +6,16 @@ import { RouterLink } from 'vue-router';
 <template>
     <div class="wrapper">
         <List class="left" align-items="center">
-            <!-- 添加系统标题/Logo区域 -->
+            <!-- 系统标题 -->
             <div class="logo-area">
                 <h2>📚 图书租售系统</h2>
             </div>
             
+            <!-- 新增：仪表盘入口 -->
+            <RouterLink to="/dashboard" class="links">
+                <span class="icon">📊</span> 仪表盘
+            </RouterLink>
+
             <RouterLink to="/rent-buy" class="links">
                 <span class="icon">🛒</span> 租借/购买服务
             </RouterLink>
@@ -29,7 +34,7 @@ import { RouterLink } from 'vue-router';
 
         </List>
         <List class="right">
-            <!-- 添加一个淡入动画效果 (可选，视个人喜好) -->
+            <!-- 内容区域 -->
             <div class="content-container">
                 <RouterView/>
             </div>
@@ -40,13 +45,12 @@ import { RouterLink } from 'vue-router';
 body{
   margin: 0;
   overflow: hidden;
-  background-color: #f0f2f5; /* 升级：整体背景色更柔和 */
+  background-color: #f0f2f5; 
 }
-/* 升级：优化搜索框容器样式 */
 .top_Inputsearch{
   width: 50%;
   margin-bottom: 20px;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.05); /* 添加轻微阴影 */
+  box-shadow: 0 4px 6px rgba(0,0,0,0.05);
   border-radius: 8px;
 }
 </style>
@@ -58,11 +62,10 @@ body{
 }
 
 .left {
-  /* 升级：侧边栏改为深色或更专业的配色，这里使用清爽的白底加阴影 */
   background-color: #ffffff;
   color: #4B5563;
-  width: 240px; /*稍微加宽 */
-  box-shadow: 2px 0 8px rgba(0,0,0,0.05); /* 添加右侧阴影 */
+  width: 240px; 
+  box-shadow: 2px 0 8px rgba(0,0,0,0.05); 
   z-index: 10;
   padding-top: 20px;
 }
@@ -81,7 +84,6 @@ body{
   padding: 24px;
 }
 
-/* 升级：内容区域添加白色卡片背景容器 */
 .content-container {
     height: 100%;
     width: 100%;
@@ -96,7 +98,7 @@ body{
   color: #666;
   margin: 8px 16px;
   padding: 12px 20px;
-  border-radius: 12px; /* 圆角更大 */
+  border-radius: 12px; 
   transition: all 0.3s ease;
   width: 90%;
   display: flex;
@@ -112,14 +114,13 @@ body{
 .links:hover {
   background-color: #e6f7ff;
   color: #1890ff;
-  transform: translateX(5px); /* 悬停微动特效 */
+  transform: translateX(5px); 
 }
 
-/* Vue Router 自动激活的类名 */
 .router-link-active {
     background-color: #1890ff;
     color: white !important;
-    box-shadow: 0 4px 12px rgba(24, 144, 255, 0.3); /* 激活状态阴影 */
+    box-shadow: 0 4px 12px rgba(24, 144, 255, 0.3); 
 }
 
 .router-link-active:hover {
