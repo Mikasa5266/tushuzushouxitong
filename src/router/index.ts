@@ -3,8 +3,9 @@ import LookBook from '@/views/LookBook.vue'
 import LookUser from '@/views/LookUser.vue'
 import RentService from '@/views/Rent-BuyService.vue'
 import LookRentOrder from '@/views/LookRentOrder.vue'
-import { createRouter, createWebHistory } from 'vue-router'
 import LookSaleOrder from '@/views/LookSaleOrder.vue'
+import Dashboard from '@/views/Dashboard.vue' // 1. 引入组件
+import { createRouter, createWebHistory } from 'vue-router'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -13,7 +14,13 @@ const router = createRouter({
       path: '/',
       name: 'index',
       component: Index,
+      redirect: '/dashboard', // 2. 默认跳转到仪表盘
       children: [
+        {
+          path: 'dashboard', // 3. 定义仪表盘路径
+          name: 'dashboard',
+          component: Dashboard
+        },
         {
           path: 'books',
           name: 'books',
