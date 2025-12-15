@@ -9,7 +9,8 @@ export interface BookTable {
   bookDetails: string,
   bookKind: string,
   bookKindCode:string,
-  bookPrice: number
+  bookPrice: number,
+  bookCount: number // 新增：库存数量
 }
 //用户表格元素
 export interface CustomerTable {
@@ -21,7 +22,7 @@ export interface CustomerTable {
     IsMember: string,
 }
 //租售订单表格元素
-export interface rentOrderTabel{
+export interface rentOrderTable{
     key:string,
     orderId:string,
     customerId:string,
@@ -31,7 +32,7 @@ export interface rentOrderTabel{
     deposit:number
 }
 // 买书订单表格元素
-export interface saleOrderTabel{
+export interface saleOrderTable{
     key:string,
     orderId:string,
     customerId:string,
