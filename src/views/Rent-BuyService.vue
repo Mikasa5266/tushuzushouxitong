@@ -10,56 +10,67 @@
                     <List justify-content="center" align-items="center" class="form-section">
                         <div class="section-header">
                             <h3>🔍 图书检索</h3>
-                            <span class="subtitle">请搜索并确认图书信息</span>
+                            <span class="subtitle">支持输入书籍编号、书名或作者</span>
                         </div>
                         
                         <FormItem>
-                            <!-- 升级：输入框样式优化 -->
+                            <!-- 
+                                升级点：
+                                1. option.value 绑定为 bookId (唯一键)
+                                2. 下拉列表展示更详细的信息
+                            -->
                             <AutoComplete 
                                 v-model:value="WhatSearchBook" 
                                 :options="optionsB" 
                                 style="width: 500px;"
                                 class="custom-autocomplete"
-                                @focus="optionsB = searchResultB()" 
+                                @focus="handleSearchB" 
                                 @select="onSelectB" 
-                                @search="onSearchB"
+                                @search="handleSearchB"
                             >
                                 <template #option="item">
                                     <div class="option-item">
-                                        <span class="book-name">《{{ item.bookName }}》</span>
+                                        <span class="book-info">
+                                            <span class="book-name">《{{ item.bookName }}》</span>
+                                            <span class="book-id-tag">ID: {{ item.value }}</span>
+                                        </span>
                                         <span class="auth-name">{{ item.authName }}</span>
                                     </div>
                                 </template>
-                                <Input size="large" placeholder="请输入图书名或作者名进行搜索">
+                                <Input size="large" placeholder="请输入 书籍编号 / 书名 / 作者">
                                     <template #prefix>📖</template>
                                 </Input>
                             </AutoComplete>
                         </FormItem>
 
-                        <!-- 升级：图书信息展示卡片 -->
-                        <div class="info-card" v-if="targetBook || true">
+                        <!-- 图书信息展示卡片 -->
+                        <div class="info-card" v-if="targetBook">
                             <div class="info-grid">
                                 <div class="info-item">
-                                    <span class="label">图书编号</span>
-                                    <span class="value">{{ targetBook?.bookId || '-' }}</span>
+                                    <span class="label">书籍编号</span>
+                                    <span class="value highlight-id">{{ targetBook.bookId }}</span>
                                 </div>
                                 <div class="info-item">
                                     <span class="label">图书名</span>
-                                    <span class="value highlight">{{ targetBook?.bookName || '-' }}</span>
+                                    <span class="value highlight">{{ targetBook.bookName }}</span>
                                 </div>
                                 <div class="info-item">
                                     <span class="label">作者</span>
-                                    <span class="value">{{ targetBook?.bookAuthor || '-' }}</span>
+                                    <span class="value">{{ targetBook.bookAuthor }}</span>
                                 </div>
                                 <div class="info-item">
                                     <span class="label">类型</span>
-                                    <span class="value tag">{{ targetBook?.bookKind || '-' }}</span>
+                                    <span class="value tag">{{ targetBook.bookKind }}</span>
                                 </div>
                                 <div class="info-item">
                                     <span class="label">单价</span>
-                                    <span class="value price">￥{{ targetBook?.bookPrice || 0 }}</span>
+                                    <span class="value price">￥{{ targetBook.bookPrice }}</span>
                                 </div>
                             </div>
+                        </div>
+                        <!-- 未选择时的占位符 -->
+                        <div class="info-card placeholder" v-else>
+                            <span style="color: #9ca3af;">请搜索并选择一本具体的书籍</span>
                         </div>
 
                         <FormItem style="margin-top: 30px;">
@@ -69,7 +80,7 @@
                                 size="large" 
                                 shape="round"
                                 class="action-btn"
-                                :disabled="openBookButton"
+                                :disabled="!targetBook"
                             >
                                 下一步：确认用户信息
                             </Button>
@@ -79,7 +90,7 @@
             </div>
         </div>
 
-        <!-- 弹窗样式优化 -->
+        <!-- 弹窗部分保持不变 -->
         <Modal title="👤 用户信息确认" v-model:open="open" :footer="null" centered width="600px">
             <div class="modal-content">
                 <AutoComplete v-model:value="WhatSaerchCustomer" :options="optionsC" @search="onSearchC"
@@ -113,10 +124,10 @@
                 </div>
 
                 <div class="modal-actions">
-                    <Button size="large" class="modal-btn rent-btn" :disabled="openRentButton" @click="rentBookButton">
+                    <Button size="large" class="modal-btn rent-btn" :disabled="!targetCustomer" @click="rentBookButton">
                         📚 借书
                     </Button>
-                    <Button size="large" class="modal-btn buy-btn" type="primary" @click="buyBookButton">
+                    <Button size="large" class="modal-btn buy-btn" type="primary" :disabled="!targetCustomer" @click="buyBookButton">
                         🛒 买书
                     </Button>
                 </div>
@@ -134,6 +145,10 @@
         <!-- 确认租书订单弹窗 -->
         <Modal v-model:open="openRentdingdan" title="📝 确认租书订单" :footer="null" centered width="500px">
             <div class="confirm-box">
+                <div class="confirm-row">
+                    <span class="c-label">书籍编号</span>
+                    <span class="c-value highlight-id">{{ targetBook?.bookId }}</span>
+                </div>
                 <div class="confirm-row">
                     <span class="c-label">书籍名称</span>
                     <span class="c-value">{{ targetBook?.bookName }}</span>
@@ -166,6 +181,10 @@
         <Modal v-model:open="openBuyOrder" title="🛍️ 确认购买订单" :footer="null" centered width="500px">
             <div class="confirm-box">
                 <div class="confirm-row">
+                    <span class="c-label">书籍编号</span>
+                    <span class="c-value highlight-id">{{ targetBook?.bookId }}</span>
+                </div>
+                <div class="confirm-row">
                     <span class="c-label">书籍名称</span>
                     <span class="c-value">{{ targetBook?.bookName }}</span>
                 </div>
@@ -192,12 +211,11 @@ import axios from 'axios';
 import { computed, onMounted, reactive, ref, toRaw } from 'vue';
 import { useRouter } from 'vue-router';
 
-//路由
 const router = useRouter()
-//数据项
-//选项的接口
+
+// 接口定义
 interface OptionB {
-    value: string,
+    value: string, // 这里现在存储 bookId
     bookName: string,
     authName: string,
 }
@@ -205,30 +223,6 @@ interface OptionC {
     value: string,
     customerName: string,
     customerTelnum: string
-}
-//书本的接口
-
-enum BKind {
-    FIC = "小说",
-    LIT = "文学",
-    HUM = "人文社科",
-    HIS = "历史",
-    PHI = "哲学宗教",
-    ART = "艺术",
-    BIO = "传记",
-    ECO = "经济",
-    FIN = "金融投资",
-    MAN = "管理",
-    MAR = "市场营销",
-    IT = "计算机",
-    SCI = "自然科学",
-    ENG = "工程技术",
-    MED = "医学",
-    EDU = "教育",
-    CHI = "儿童绘本",
-    YOU = "青少年读物",
-    LIF = "生活家具",
-    TRA = "旅游地图",
 }
 
 interface Book {
@@ -238,7 +232,7 @@ interface Book {
     bookStatus: string,
     bookAuthor: string,
     bookDetails: string,
-    bookKind: BKind,
+    bookKind: string,
     bookPrice: number
 }
 interface Customer {
@@ -249,27 +243,21 @@ interface Customer {
     customerGender: string,
     IsMember: string,
 }
-//控制对话框展开
+
 const open = ref(false)
 const WhatSearchBook = ref('')
 const WhatSaerchCustomer = ref('')
 const optionsB = ref<OptionB[]>([])
-
 const optionsC = ref<OptionC[]>([])
 
-//书本数据
-
 const books = ref<Book[]>([])
-const targetBook = ref<Book>()
-const openBookButton = ref(true)
-//顾客数据
+const targetBook = ref<Book>() // 当前选中的具体那本书
 
 const customers = ref<Customer[]>([])
 const targetCustomer = ref<Customer>()
 
-//获取图书和顾客信息
 onMounted(async () => {
-    //获取图书、
+    // 获取图书
     const result1 = await axios.get('http://localhost:3000/api/books')
     const thebooks: Book[] = result1.data.map((item: any) => ({
         key: item['书籍号'],
@@ -283,7 +271,8 @@ onMounted(async () => {
         bookPrice: item['书籍单价']
     }))
     books.value = thebooks
-    //获取顾客
+    
+    // 获取顾客
     const result2 = await axios.get('http://localhost:3000/api/customers')
     const thecustomers: Customer[] = result2.data.map((item: any) => ({
         key: item['顾客号'],
@@ -295,49 +284,56 @@ onMounted(async () => {
     }))
     customers.value = thecustomers
 })
-const openRentButton = ref(true)
-//方法实现
-//查询图书的方法
-const onSelectB = (value: any) => {
-    WhatSearchBook.value = value
-    const result = books.value.filter((item) => {
-        return (item.bookName.includes(WhatSearchBook.value) || item.bookAuthor.includes(WhatSearchBook.value) && item.bookStatus != '已租' && item.bookStatus != '已售')
-    })
-    targetBook.value = result[0]
-    IsSelectB.value = true
-    openBookButton.value = false
-}
-const searchResultB = (): OptionB[] => {
-    const result = books.value.filter((item) => {
-        return (
-            (item.bookName.includes(WhatSearchBook.value) ||
-                item.bookAuthor.includes(WhatSearchBook.value))
-            &&
-            item.bookStatus !== '已租' &&
-            item.bookStatus !== '已售'
-        );
-    });
 
-    return result.map((element) => ({
-        value: element.bookName,
+// ---------------- 核心修改：图书搜索逻辑 ----------------
+
+// 计算搜索结果：现在支持按 ID、名称、作者搜索
+const getFilteredBooks = () => {
+    return books.value.filter((item) => {
+        const searchText = WhatSearchBook.value.trim().toLowerCase();
+        if (!searchText) return false;
+
+        const matchId = item.bookId.toLowerCase().includes(searchText);
+        const matchName = item.bookName.toLowerCase().includes(searchText);
+        const matchAuthor = item.bookAuthor.toLowerCase().includes(searchText);
+        
+        // 只能租借/购买“空闲”状态的书
+        const isAvailable = item.bookStatus === '空闲';
+
+        return (matchId || matchName || matchAuthor) && isAvailable;
+    });
+};
+
+// 构造下拉选项
+const handleSearchB = () => {
+    const result = getFilteredBooks();
+    // 限制显示数量，防止卡顿
+    const limitedResult = result.slice(0, 10); 
+
+    optionsB.value = limitedResult.map((element) => ({
+        value: element.bookId, // 关键：value 绑定为唯一的 bookId
         bookName: element.bookName,
         authName: element.bookAuthor
     }));
 };
 
-const onSearchB = (value: any) => {
-    optionsB.value = searchResultB()
+// 选中逻辑：根据唯一的 bookId 查找
+const onSelectB = (value: any) => { // 修复：将参数类型改为 any 以兼容 AutoComplete 的 SelectHandler
+    // value 是 bookId
+    const foundBook = books.value.find(item => item.bookId === value);
+    if (foundBook) {
+        targetBook.value = foundBook;
+        WhatSearchBook.value = foundBook.bookName; // 选中后输入框显示书名
+    }
 }
-const IsSelectB = ref(false)
-//查询顾客的方法
+
+// ---------------- 顾客搜索逻辑 ----------------
 const onSelectC = (value: any) => {
     WhatSaerchCustomer.value = value
     const result = customers.value.filter((item) => {
         return item.customerTelNum.includes(WhatSaerchCustomer.value) || item.customerName.includes(WhatSaerchCustomer.value)
     })
     targetCustomer.value = result[0]
-    openRentButton.value = result[0]?.IsMember === '非会员'
-    IsSelectC.value = true
 }
 const onSearchC = () => {
     const result = customers.value.filter((item) => {
@@ -353,76 +349,84 @@ const onSearchC = () => {
     });
     optionsC.value = temp.value
 }
-const IsSelectC = ref(false)
-//对话框配置
+
+// ---------------- 业务逻辑 ----------------
 const openModal = () => {
+    if(!targetBook.value) {
+        message.warning("请先选择图书");
+        return;
+    }
     open.value = true
 }
-//确定出租订单
+
 const openRentdingdan = ref(false)
 const timeLength = ref(1)  
 const yajin = computed(() => {
     if (!targetBook.value) return 0
     return Math.round(targetBook.value.bookPrice * 1.2)
 });
-const handleTimeChange = () => {
+const handleTimeChange = () => {}
 
-}
 const submitDingdan = async () => {
-    const now = Date()
-    const result = await axios.post('http://localhost:3000/api/rent', {
-        customerId: targetCustomer.value?.customerNum,
-        bookId: targetBook.value?.bookId,
-        rentDate: now,
-        rentDays: timeLength.value,
-        deposit: yajin.value
-    })
-    console.log(result)
-    message.success('租书成功')
-    router.push('/')
+    const now = new Date()
+    try {
+        await axios.post('http://localhost:3000/api/rent', {
+            customerId: targetCustomer.value?.customerNum,
+            bookId: targetBook.value?.bookId, // 发送唯一的 ID
+            rentDate: now,
+            rentDays: timeLength.value,
+            deposit: yajin.value
+        })
+        message.success('租书成功')
+        router.push('/') // 这里可以改为 router.push('/rentorder') 查看订单
+    } catch(err) {
+        message.error('租书失败')
+    }
 }
-//确定购买订单、
+
 const openBuyOrder = ref(false)
 const submitSaleOrder = async ()=>{
-    const now = Date()
-    const result = await axios.post('http://localhost:3000/api/buy',{
-        customerId:targetCustomer.value?.customerNum,
-        bookId:targetBook.value?.bookId,
-        saleDate:now,
-        salePrice:targetBook.value?.bookPrice,
-        paymentStatus:'已支付'
-    })
-    message.success('买书成功')
-    router.push('/')
-
+    const now = new Date()
+    try {
+        await axios.post('http://localhost:3000/api/buy',{
+            customerId:targetCustomer.value?.customerNum,
+            bookId:targetBook.value?.bookId, // 发送唯一的 ID
+            saleDate:now,
+            salePrice:targetBook.value?.bookPrice,
+            paymentStatus:'已支付'
+        })
+        message.success('买书成功')
+        router.push('/')
+    } catch(err) {
+        message.error('买书失败')
+    }
 }
-//出租按钮
 
 const rentBookButton = () => {
-    if (!IsSelectB.value) {
+    if (!targetBook.value) {
         message.error("请先选择图书")
-    } else if (!IsSelectC.value) {
+    } else if (!targetCustomer.value) {
         message.error("请先选择客户信息")
+    } else {
+        openRentdingdan.value = true
     }
-    openRentdingdan.value = true
-}
-//购买按钮
-const buyBookButton = () => {
-    if (!IsSelectB.value) {
-        message.error("请先选择图书")
-    } else if (!IsSelectC.value) {
-        message.error("请先选择客户信息")
-    }
-    openBuyOrder.value = true
 }
 
-//付款二维码
+const buyBookButton = () => {
+    if (!targetBook.value) {
+        message.error("请先选择图书")
+    } else if (!targetCustomer.value) {
+        message.error("请先选择客户信息")
+    } else {
+        openBuyOrder.value = true
+    }
+}
+
 const openfukuan = ref(false)
 const fukuan = ref("https://www.yuanshen.com/#/")
 </script>
 
 <style scoped>
-/* 升级：整体容器样式 */
 .page-container {
     height: 100%;
     display: flex;
@@ -436,7 +440,7 @@ const fukuan = ref("https://www.yuanshen.com/#/")
     max-width: 100%;
     background-color: white;
     border-radius: 20px;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08); /* 更柔和的阴影 */
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08); 
     padding: 40px;
     transition: all 0.3s ease;
 }
@@ -470,22 +474,34 @@ const fukuan = ref("https://www.yuanshen.com/#/")
     color: #9ca3af;
 }
 
-/* AutoComplete 下拉选项样式 */
+/* 升级：AutoComplete 下拉选项样式 */
 .option-item {
     display: flex;
     justify-content: space-between;
     padding: 4px 0;
+    align-items: center;
+}
+.book-info {
+    display: flex;
+    flex-direction: column;
 }
 .book-name {
     font-weight: bold;
     color: #333;
+}
+.book-id-tag {
+    font-size: 11px;
+    color: #1890ff;
+    background: #e6f7ff;
+    padding: 1px 4px;
+    border-radius: 3px;
+    width: fit-content;
 }
 .auth-name {
     color: #888;
     font-size: 12px;
 }
 
-/* 升级：信息展示卡片 */
 .info-card {
     background-color: #f9fafb;
     border-radius: 12px;
@@ -493,6 +509,14 @@ const fukuan = ref("https://www.yuanshen.com/#/")
     width: 500px;
     margin-top: 10px;
     border: 1px solid #e5e7eb;
+}
+.info-card.placeholder {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100px;
+    background-color: #fff;
+    border: 1px dashed #d1d5db;
 }
 
 .info-grid {
@@ -522,6 +546,12 @@ const fukuan = ref("https://www.yuanshen.com/#/")
     color: #2563eb;
     font-weight: 600;
 }
+.info-item .highlight-id {
+    color: #d97706; /* 橙色强调ID */
+    font-family: monospace;
+    font-size: 16px;
+    font-weight: bold;
+}
 
 .info-item .tag {
     display: inline-block;
@@ -544,11 +574,6 @@ const fukuan = ref("https://www.yuanshen.com/#/")
     height: 45px;
     font-size: 16px;
     box-shadow: 0 4px 6px rgba(37, 99, 235, 0.2);
-}
-
-/* Modal Styles */
-.modal-content {
-    padding: 10px;
 }
 
 .user-info-box {
@@ -574,7 +599,7 @@ const fukuan = ref("https://www.yuanshen.com/#/")
 }
 
 .is-member {
-    color: #d97706; /* 金色 */
+    color: #d97706; 
     font-weight: bold;
 }
 
@@ -601,13 +626,12 @@ const fukuan = ref("https://www.yuanshen.com/#/")
 }
 
 .buy-btn {
-    background-color: #10b981; /* 绿色 */
+    background-color: #10b981; 
 }
 .buy-btn:hover {
     background-color: #059669;
 }
 
-/* Confirm Box */
 .confirm-box {
     padding: 10px 20px;
 }

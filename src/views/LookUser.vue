@@ -16,10 +16,15 @@
                     </template>
                 </InputSearch>
             </div>
-            <!-- 新增按钮 -->
-            <Button type="primary" size="large" @click="openAddUserModal" class="add-btn">
-                ➕ 新增用户
-            </Button>
+            <!-- 按钮组 -->
+            <div class="action-buttons">
+                <Button type="default" size="large" @click="exportData" style="margin-right: 10px;">
+                    📤 导出 Excel
+                </Button>
+                <Button type="primary" size="large" @click="openAddUserModal" class="add-btn">
+                    ➕ 新增用户
+                </Button>
+            </div>
         </div>
 
         <!-- 表格卡片 -->
@@ -141,6 +146,7 @@
 </template>
 
 <script setup lang="ts">
+import * as XLSX from 'xlsx'; // 引入 xlsx
 import List from '@/components/List.vue';
 import type { CustomerTable } from '@/util/type';
 import { Input, InputSearch, message, Table, Select, SelectOption, Modal, InputPassword, Button, Form, FormItem, Popconfirm } from 'ant-design-vue';
@@ -156,10 +162,8 @@ const adminPassword = ref('');
 const pendingKey = ref<string>(''); // 暂存待操作(编辑或删除)的行Key
 const authAction = ref<'edit' | 'delete'>('edit'); // 记录当前验证是为了编辑还是删除
 
-// ==========================================
-// 🔑 管理员密码配置 (在此处修改)
+// 🔑 管理员密码配置
 const ADMIN_PWD = '123456'; 
-// ==========================================
 
 // 新增用户相关
 const addUserModalVisible = ref(false);
@@ -254,7 +258,6 @@ const deleteUser = (key: string) => {
 
 // 3. 验证密码
 const verifyAuth = () => {
-    // 使用上方定义的常量 ADMIN_PWD 进行验证
     if (adminPassword.value === ADMIN_PWD) {
         authModalVisible.value = false;
         if (authAction.value === 'edit') {
@@ -327,73 +330,34 @@ const onSearch = () => {
     })
     tempCS.value = JSON.parse(JSON.stringify(result))
 }
+
+// 导出 Excel
+const exportData = () => {
+    const dataToExport = tempCS.value.map(item => ({
+        '客户编号': item.customerNum,
+        '姓名': item.customerName,
+        '电话': item.customerTelNum,
+        '性别': item.customerGender,
+        '会员状态': item.IsMember
+    }));
+    const ws = XLSX.utils.json_to_sheet(dataToExport);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "用户列表");
+    XLSX.writeFile(wb, "用户名单.xlsx");
+};
 </script>
 
 <style lang="scss" scoped>
-.page-layout {
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-}
-
-.header-action-bar {
-    background: #fff;
-    padding: 20px;
-    border-radius: 12px;
-    margin-bottom: 20px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.03);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.search-wrapper {
-    width: 500px;
-}
-
-.add-btn {
-    margin-left: 20px;
-    box-shadow: 0 4px 6px rgba(24, 144, 255, 0.2);
-}
-
-.table-card {
-    background: #fff;
-    padding: 20px;
-    border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.03);
-    flex: 1;
-    overflow: hidden;
-}
-
-.editable-row-operations a {
-    margin-right: 8px;
-}
-
-.edit-btn {
-    color: #722ed1;
-}
-
-.member-tag {
-    color: #d97706; /* 金色 */
-    font-weight: bold;
-    background-color: #fffbeb;
-    padding: 4px 8px;
-    border-radius: 4px;
-    border: 1px solid #fcd34d;
-}
-
-.normal-tag {
-    color: #4b5563;
-    background-color: #f3f4f6;
-    padding: 4px 8px;
-    border-radius: 4px;
-}
-
-.add-form .form-row {
-    display: flex;
-    gap: 20px;
-}
-.add-form .form-row > div {
-    flex: 1;
-}
+/* 保持原有样式 */
+.page-layout { height: 100%; display: flex; flex-direction: column; }
+.header-action-bar { background: #fff; padding: 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.03); display: flex; justify-content: space-between; align-items: center; }
+.search-wrapper { width: 500px; }
+.add-btn { box-shadow: 0 4px 6px rgba(24, 144, 255, 0.2); }
+.table-card { background: #fff; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.03); flex: 1; overflow: hidden; }
+.editable-row-operations a { margin-right: 8px; }
+.edit-btn { color: #722ed1; }
+.member-tag { color: #d97706; font-weight: bold; background-color: #fffbeb; padding: 4px 8px; border-radius: 4px; border: 1px solid #fcd34d; }
+.normal-tag { color: #4b5563; background-color: #f3f4f6; padding: 4px 8px; border-radius: 4px; }
+.add-form .form-row { display: flex; gap: 20px; }
+.add-form .form-row > div { flex: 1; }
 </style>

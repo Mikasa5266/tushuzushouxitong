@@ -15,6 +15,10 @@
                     </template>
                 </InputSearch>
             </div>
+            <!-- 功能 2：导出按钮 -->
+            <Button type="primary" size="large" @click="exportData" class="export-btn">
+                📤 导出 Excel
+            </Button>
         </div>
 
         <div class="table-card">
@@ -32,9 +36,10 @@
 import List from '@/components/List.vue';
 import { datetransform } from '@/util/datetransform';
 import type { saleOrderTable } from '@/util/type';
-import { Table as ATable, InputSearch, Table } from 'ant-design-vue';
+import { Table as ATable, InputSearch, Table, Button } from 'ant-design-vue';
 import axios from 'axios';
 import { onMounted, ref } from 'vue';
+import * as XLSX from 'xlsx'; // 引入 xlsx
 
 // 定义表格列属性
 const columns = [
@@ -94,6 +99,21 @@ const onSearch = () => {
     tempsource.value = JSON.parse(JSON.stringify(result))
 }
 
+// 导出 Excel
+const exportData = () => {
+    const dataToExport = tempsource.value.map(item => ({
+        '交易号': item.orderId,
+        '客户号': item.customerId,
+        '顾客姓名': item.customerName,
+        '书籍号': item.bookId,
+        '销售价格': item.salePrice,
+        '销售日期': item.saleDate
+    }));
+    const ws = XLSX.utils.json_to_sheet(dataToExport);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "销售订单");
+    XLSX.writeFile(wb, "销售报表.xlsx");
+};
 </script>
 
 <style scoped>
@@ -110,7 +130,8 @@ const onSearch = () => {
     margin-bottom: 20px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.03);
     display: flex;
-    justify-content: center;
+    justify-content: space-between;
+    align-items: center;
 }
 
 .search-wrapper {
@@ -124,6 +145,15 @@ const onSearch = () => {
     box-shadow: 0 2px 8px rgba(0,0,0,0.03);
     flex: 1;
     overflow: hidden;
+}
+
+.export-btn {
+    background-color: #52c41a; /* Excel 绿色 */
+    border-color: #52c41a;
+}
+.export-btn:hover {
+    background-color: #73d13d;
+    border-color: #73d13d;
 }
 
 :deep(.column-money) {
