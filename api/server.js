@@ -26,17 +26,17 @@ connectDB();
 
 // --- 书籍相关接口 ---
 
-// 1. 获取所有书籍
+// 1. 获取所有书籍 (已移除 B.库存)
 app.get('/api/books', async (req, res) => {
     try {
         if (!pool) await connectDB();
-        // 联表查询，获取书籍类型名称 (书籍类型代码)
         const result = await pool.request().query(`
             SELECT 
-                B.书籍号, B.书籍名, B.书籍状态, B.书籍作者, B.书籍简介, B.书籍单价,B.书籍类型代码,
+                B.书籍号, B.书籍名, B.书籍状态, B.书籍作者, B.书籍简介, B.书籍单价, B.书籍类型代码,
                 T.类型名称 AS 书籍类型
             FROM 书籍 B
-            LEFT JOIN 书籍类型 T ON B.书籍类型代码 = T.类型代码;
+            LEFT JOIN 书籍类型 T ON B.书籍类型代码 = T.类型代码
+            ORDER BY B.书籍号 ASC;
         `);
         res.json(result.recordset);
     } catch (err) {
@@ -44,9 +44,9 @@ app.get('/api/books', async (req, res) => {
     }
 });
 
-// 2. 模糊搜索书籍 (LookBook.vue 中的 onSearch)
+// 2. 模糊搜索书籍 (已移除 B.库存)
 app.get('/api/books/search', async (req, res) => {
-    const { keyword } = req.query; // 接收前端传来的 keyword 参数
+    const { keyword } = req.query;
     if (!keyword) {
         return res.status(400).json({ error: '缺少 keyword 参数' });
     }
@@ -70,17 +70,13 @@ app.get('/api/books/search', async (req, res) => {
     }
 });
 
-// 3. 更新书籍信息 (LookBook.vue 中的 save)
+// 3. 更新书籍信息 (已移除 库存 更新)
 app.put('/api/books/:id', async (req, res) => {
     const { id } = req.params;
     const { 书籍名, 书籍状态, 书籍作者, 书籍简介, 书籍单价, 书籍类型代码 } = req.body;
 
     try {
         if (!pool) await connectDB();
-
-        // 假设前端在编辑时能提供 书籍类型代码 (例如 'LIT')，否则需要前端提供类型名称
-        // 这里简化为直接更新主要字段
-        console.log(书籍类型代码)
         await pool.request()
             .input('bookId', sql.Char(12), id)
             .input('bookName', sql.NVarChar(50), 书籍名)
@@ -107,6 +103,84 @@ app.put('/api/books/:id', async (req, res) => {
     }
 });
 
+// 11. 新增书籍接口 (批量入库逻辑)
+// 注意：前端传来的 '库存' 参数仅用于控制循环次数，不再写入数据库
+app.post('/api/books', async (req, res) => {
+    const { 书籍名, 书籍状态, 书籍作者, 书籍简介, 书籍单价, 书籍类型代码, 库存 } = req.body;
+    // 获取入库数量，默认为 1
+    const count = parseInt(库存) || 1; 
+
+    try {
+        if (!pool) await connectDB();
+
+        const transaction = new sql.Transaction(pool);
+        await transaction.begin();
+
+        try {
+            // 1. 获取当前数据库中最大的书籍号作为基准
+            const request = new sql.Request(transaction);
+            const idResult = await request.query("SELECT TOP 1 书籍号 FROM 书籍 ORDER BY 书籍号 DESC");
+            
+            let lastIdNum = 100000000000n; // 默认基准 (12位)
+
+            if (idResult.recordset.length > 0) {
+                const lastIdStr = idResult.recordset[0].书籍号.trim();
+                try {
+                    lastIdNum = BigInt(lastIdStr);
+                } catch (e) {
+                    console.warn("书籍号格式非纯数字，重置为默认基准");
+                }
+            }
+
+            // 2. 循环插入 count 次 (已移除 INSERT 中的 库存 列)
+            for (let i = 1; i <= count; i++) {
+                const currentIdNum = lastIdNum + BigInt(i);
+                const newBookId = currentIdNum.toString();
+
+                const insertRequest = new sql.Request(transaction);
+                await insertRequest
+                    .input('bookId', sql.Char(12), newBookId)
+                    .input('bookName', sql.NVarChar(50), 书籍名)
+                    .input('bookStatus', sql.NVarChar(2), '空闲') 
+                    .input('bookAuthor', sql.NVarChar(20), 书籍作者)
+                    .input('bookDetails', sql.NVarChar(50), 书籍简介)
+                    .input('bookPrice', sql.Float, 书籍单价)
+                    .input('bookKindCode', sql.Char(3), 书籍类型代码)
+                    .query(`
+                        INSERT INTO 书籍 (书籍号, 书籍名, 书籍状态, 书籍作者, 书籍简介, 书籍单价, 书籍类型代码)
+                        VALUES (@bookId, @bookName, @bookStatus, @bookAuthor, @bookDetails, @bookPrice, @bookKindCode)
+                    `);
+            }
+
+            await transaction.commit();
+            res.json({ message: `成功入库 ${count} 本书籍` });
+
+        } catch (err) {
+            await transaction.rollback();
+            throw err;
+        }
+
+    } catch (err) {
+        console.error("添加书籍失败:", err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// 13. 删除书籍接口
+app.delete('/api/books/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        if (!pool) await connectDB();
+        await pool.request()
+            .input('bookId', sql.Char(12), id)
+            .query('DELETE FROM 书籍 WHERE 书籍号 = @bookId');
+        res.json({ message: '书籍删除成功' });
+    } catch (err) {
+        console.error("删除书籍失败:", err);
+        res.status(500).json({ error: '删除失败，该书籍可能存在相关交易记录（已租/已售），无法直接删除。' });
+    }
+});
+
 // --- 顾客相关接口 ---
 
 // 4. 获取所有顾客
@@ -120,13 +194,10 @@ app.get('/api/customers', async (req, res) => {
     }
 });
 
-// 5. 模糊搜索顾客 (LookUser.vue, RentService.vue 中的 onSearchC)
+// 5. 模糊搜索顾客
 app.get('/api/customers/search', async (req, res) => {
     const { keyword } = req.query;
-    if (!keyword) {
-        // 如果没有关键词，返回全部顾客列表
-        return res.json([]);
-    }
+    if (!keyword) return res.json([]);
     try {
         if (!pool) await connectDB();
         const result = await pool.request()
@@ -143,7 +214,7 @@ app.get('/api/customers/search', async (req, res) => {
     }
 });
 
-// 6. 更新顾客信息 (LookUser.vue 中的 save)
+// 6. 更新顾客信息
 app.put('/api/customers/:id', async (req, res) => {
     const { id } = req.params;
     const { 姓名, 电话号码, 性别, 会员状态 } = req.body;
@@ -164,65 +235,99 @@ app.put('/api/customers/:id', async (req, res) => {
                     会员状态 = @isMember
                 WHERE 顾客号 = @customerNum;
             `);
-        
-        if (result.rowsAffected[0] === 0) {
-            return res.status(404).json({ message: '更新失败：未找到该顾客号' });
-        }
-           
+        if (result.rowsAffected[0] === 0) return res.status(404).json({ message: '更新失败：未找到该顾客号' });
         res.json({ message: '顾客信息更新成功' });
-
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: err.message });
     }
 });
-// --- 交易服务接口 (保持不变) ---
 
-// 7. 租书接口 (POST) - 自动生成交易号
-app.post('/api/rent', async (req, res) => {
-    // 假设前端传递了 rentDays 字段用于预计天数
-    const { customerId, bookId, rentDate, rentDays, deposit } = req.body;
-
-    // 映射前端字段到数据库字段
-    const 顾客号 = customerId;
-    const 书籍号 = bookId;
-    const 租借日期 = rentDate;
-    const 预计天数 = rentDays;
-    const 押金 = deposit;
+// 12. 新增用户接口 (自动生成ID: Cxxxx)
+app.post('/api/customers', async (req, res) => {
+    const { 姓名, 电话号码, 性别, 会员状态 } = req.body;
 
     try {
         if (!pool) await connectDB();
 
+        const idResult = await pool.request().query("SELECT TOP 1 顾客号 FROM 顾客 WHERE 顾客号 LIKE 'C%' ORDER BY 顾客号 DESC");
+        let newCustomerId = 'C0001'; 
+
+        if (idResult.recordset.length > 0) {
+            const lastId = idResult.recordset[0].顾客号.trim();
+            try {
+                const numberPart = lastId.substring(1); 
+                const num = parseInt(numberPart, 10);
+                if (!isNaN(num)) {
+                    newCustomerId = 'C' + (num + 1).toString().padStart(4, '0');
+                }
+            } catch (e) {
+                console.warn("顾客号格式解析失败，使用默认ID");
+            }
+        }
+
+        await pool.request()
+            .input('customerId', sql.Char(10), newCustomerId)
+            .input('customerName', sql.NVarChar(50), 姓名)
+            .input('customerTel', sql.Char(11), 电话号码)
+            .input('customerGender', sql.NVarChar(1), 性别)
+            .input('isMember', sql.NVarChar(3), 会员状态)
+            .query(`
+                INSERT INTO 顾客 (顾客号, 姓名, 电话号码, 性别, 会员状态)
+                VALUES (@customerId, @customerName, @customerTel, @customerGender, @isMember)
+            `);
+        res.json({ message: '用户添加成功', customerId: newCustomerId });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// 14. 删除用户接口
+app.delete('/api/customers/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        if (!pool) await connectDB();
+        await pool.request()
+            .input('customerId', sql.Char(10), id)
+            .query('DELETE FROM 顾客 WHERE 顾客号 = @customerId');
+        res.json({ message: '用户注销成功' });
+    } catch (err) {
+        console.error("注销用户失败:", err);
+        res.status(500).json({ error: '注销失败，该用户可能存在未完成的业务，无法直接注销。' });
+    }
+});
+
+// --- 交易服务接口 ---
+
+app.post('/api/rent', async (req, res) => {
+    const { customerId, bookId, rentDate, rentDays, deposit } = req.body;
+    try {
+        if (!pool) await connectDB();
         const transaction = new sql.Transaction(pool);
         await transaction.begin();
-
         try {
             const request = new sql.Request(transaction);
-
-            // 插入租书记录 (自动生成交易号)
             const insertResult = await request
-                .input('cid', sql.Char(10), 顾客号)
-                .input('bid', sql.Char(12), 书籍号)
-                .input('date', sql.DateTime2, 租借日期)
-                .input('days', sql.Int, 预计天数)
-                .input('deposit', sql.Float, 押金)
+                .input('cid', sql.Char(10), customerId)
+                .input('bid', sql.Char(12), bookId)
+                .input('date', sql.DateTime2, rentDate)
+                .input('days', sql.Int, rentDays)
+                .input('deposit', sql.Float, deposit)
                 .query(`
                     INSERT INTO 租书登记表 (顾客号, 书籍号, 租借日期, 预计天数, 押金)
                     OUTPUT inserted.交易号
                     VALUES (@cid, @bid, @date, @days, @deposit)
                 `);
-
             const newId = insertResult.recordset[0].交易号;
-
-            // 更新书籍状态为 '已租'
+            
             const updateRequest = new sql.Request(transaction);
             await updateRequest
-                .input('bid', sql.Char(12), 书籍号)
+                .input('bid', sql.Char(12), bookId)
                 .query("UPDATE 书籍 SET 书籍状态 = '已租' WHERE 书籍号 = @bid");
-
+            
             await transaction.commit();
             res.json({ message: '租书成功', transactionId: newId });
-
         } catch (err) {
             await transaction.rollback();
             throw err;
@@ -232,50 +337,34 @@ app.post('/api/rent', async (req, res) => {
     }
 });
 
-// 8. 买书接口 (POST) - 自动生成交易号
 app.post('/api/buy', async (req, res) => {
-    // 假设前端传递了 saleDate, salePrice, paymentStatus
     const { customerId, bookId, saleDate, salePrice, paymentStatus } = req.body;
-
-    // 映射前端字段到数据库字段
-    const 顾客号 = customerId;
-    const 书籍号 = bookId;
-    const 销售日期 = saleDate;
-    const 销售价格 = salePrice;
-    const 付款状态 = paymentStatus;
-
     try {
         if (!pool) await connectDB();
         const transaction = new sql.Transaction(pool);
         await transaction.begin();
-
         try {
             const request = new sql.Request(transaction);
-
-            // 插入买书记录 (自动生成交易号)
             const insertResult = await request
-                .input('cid', sql.Char(10), 顾客号)
-                .input('bid', sql.Char(12), 书籍号)
-                .input('date', sql.DateTime2, 销售日期)
-                .input('price', sql.Float, 销售价格)
-                .input('status', sql.NChar(10), 付款状态)
+                .input('cid', sql.Char(10), customerId)
+                .input('bid', sql.Char(12), bookId)
+                .input('date', sql.DateTime2, saleDate)
+                .input('price', sql.Float, salePrice)
+                .input('status', sql.NChar(10), paymentStatus)
                 .query(`
                     INSERT INTO 买书交易表 (顾客号, 书籍号, 销售日期, 销售价格, 付款状态)
                     OUTPUT inserted.交易号
                     VALUES (@cid, @bid, @date, @price, @status)
                 `);
-
             const newId = insertResult.recordset[0].交易号;
-
-            // 更新书籍状态为 '已售'
+            
             const updateRequest = new sql.Request(transaction);
             await updateRequest
-                .input('bid', sql.Char(12), 书籍号)
+                .input('bid', sql.Char(12), bookId)
                 .query("UPDATE 书籍 SET 书籍状态 = '已售' WHERE 书籍号 = @bid");
-
+            
             await transaction.commit();
             res.json({ message: '买书成功', transactionId: newId });
-
         } catch (err) {
             await transaction.rollback();
             throw err;
@@ -285,8 +374,6 @@ app.post('/api/buy', async (req, res) => {
     }
 });
 
-
-// 9. 获取租书账单 (视图)
 app.get('/api/bills/rent', async (req, res) => {
     try {
         if (!pool) await connectDB();
@@ -297,7 +384,6 @@ app.get('/api/bills/rent', async (req, res) => {
     }
 });
 
-// 10. 获取买书账单 (视图)
 app.get('/api/bills/buy', async (req, res) => {
     try {
         if (!pool) await connectDB();
