@@ -11,6 +11,20 @@ app.use(express.json());
 
 let pool;
 
+// === 辅助函数：记录操作日志 ===
+async function logOperation(type, content) {
+    try {
+        if (!pool) await connectDB();
+        // 确保数据库中有 [操作日志] 表
+        await pool.request()
+            .input('type', sql.NVarChar(50), type)
+            .input('content', sql.NVarChar(sql.MAX), content)
+            .query("INSERT INTO 操作日志 (操作类型, 操作内容) VALUES (@type, @content)");
+    } catch (err) {
+        console.error("日志记录失败 (请确保数据库已创建[操作日志]表):", err.message);
+    }
+}
+
 async function connectDB() {
     try {
         pool = await sql.connect(dbConfig);
@@ -95,6 +109,8 @@ app.put('/api/books/:id', async (req, res) => {
                     书籍类型代码 = @bookKindCode
                 WHERE 书籍号 = @bookId;
             `);
+        
+        logOperation('修改书籍', `修改了书籍信息 ID: ${id}`);
         res.json({ message: '书籍更新成功' });
 
     } catch (err) {
@@ -103,11 +119,10 @@ app.put('/api/books/:id', async (req, res) => {
     }
 });
 
-// 11. 新增书籍接口 (批量入库逻辑)
-// 注意：前端传来的 '库存' 参数仅用于控制循环次数，不再写入数据库
+// 11. 新增书籍接口 (批量入库逻辑 - 已移除库存列的插入)
 app.post('/api/books', async (req, res) => {
     const { 书籍名, 书籍状态, 书籍作者, 书籍简介, 书籍单价, 书籍类型代码, 库存 } = req.body;
-    // 获取入库数量，默认为 1
+    // 获取入库数量，默认为 1。这个库存仅用于循环次数，不写入数据库。
     const count = parseInt(库存) || 1; 
 
     try {
@@ -153,6 +168,7 @@ app.post('/api/books', async (req, res) => {
             }
 
             await transaction.commit();
+            logOperation('新增书籍', `批量入库 ${count} 本《${书籍名}》`);
             res.json({ message: `成功入库 ${count} 本书籍` });
 
         } catch (err) {
@@ -174,6 +190,7 @@ app.delete('/api/books/:id', async (req, res) => {
         await pool.request()
             .input('bookId', sql.Char(12), id)
             .query('DELETE FROM 书籍 WHERE 书籍号 = @bookId');
+        logOperation('删除书籍', `删除了书籍 ID: ${id}`);
         res.json({ message: '书籍删除成功' });
     } catch (err) {
         console.error("删除书籍失败:", err);
@@ -236,6 +253,8 @@ app.put('/api/customers/:id', async (req, res) => {
                 WHERE 顾客号 = @customerNum;
             `);
         if (result.rowsAffected[0] === 0) return res.status(404).json({ message: '更新失败：未找到该顾客号' });
+        
+        logOperation('修改用户', `修改了用户信息: ${姓名} (${id})`);
         res.json({ message: '顾客信息更新成功' });
     } catch (err) {
         console.error(err);
@@ -250,22 +269,26 @@ app.post('/api/customers', async (req, res) => {
     try {
         if (!pool) await connectDB();
 
+        // 1. 获取当前最大的顾客号 (格式为 C0001, C0002 ...)
         const idResult = await pool.request().query("SELECT TOP 1 顾客号 FROM 顾客 WHERE 顾客号 LIKE 'C%' ORDER BY 顾客号 DESC");
-        let newCustomerId = 'C0001'; 
+        let newCustomerId = 'C0001'; // 默认初始值
 
         if (idResult.recordset.length > 0) {
-            const lastId = idResult.recordset[0].顾客号.trim();
+            const lastId = idResult.recordset[0].顾客号.trim(); // 例如 "C0005"
             try {
+                // 提取数字部分 "0005"
                 const numberPart = lastId.substring(1); 
                 const num = parseInt(numberPart, 10);
                 if (!isNaN(num)) {
+                    // 数字加1，并补零回4位
                     newCustomerId = 'C' + (num + 1).toString().padStart(4, '0');
                 }
             } catch (e) {
-                console.warn("顾客号格式解析失败，使用默认ID");
+                console.warn("顾客号格式解析失败，无法自动递增");
             }
         }
 
+        // 2. 插入新用户
         await pool.request()
             .input('customerId', sql.Char(10), newCustomerId)
             .input('customerName', sql.NVarChar(50), 姓名)
@@ -276,6 +299,8 @@ app.post('/api/customers', async (req, res) => {
                 INSERT INTO 顾客 (顾客号, 姓名, 电话号码, 性别, 会员状态)
                 VALUES (@customerId, @customerName, @customerTel, @customerGender, @isMember)
             `);
+        
+        logOperation('新增用户', `添加了新用户: ${姓名} (${newCustomerId})`);
         res.json({ message: '用户添加成功', customerId: newCustomerId });
     } catch (err) {
         console.error(err);
@@ -283,7 +308,7 @@ app.post('/api/customers', async (req, res) => {
     }
 });
 
-// 14. 删除用户接口
+// 14. 删除用户接口 (注销)
 app.delete('/api/customers/:id', async (req, res) => {
     const { id } = req.params;
     try {
@@ -291,10 +316,12 @@ app.delete('/api/customers/:id', async (req, res) => {
         await pool.request()
             .input('customerId', sql.Char(10), id)
             .query('DELETE FROM 顾客 WHERE 顾客号 = @customerId');
+        
+        logOperation('注销用户', `注销了用户 ID: ${id}`);
         res.json({ message: '用户注销成功' });
     } catch (err) {
         console.error("注销用户失败:", err);
-        res.status(500).json({ error: '注销失败，该用户可能存在未完成的业务，无法直接注销。' });
+        res.status(500).json({ error: '注销失败，该用户可能存在未完成的租书/买书记录，无法直接注销。' });
     }
 });
 
@@ -327,6 +354,7 @@ app.post('/api/rent', async (req, res) => {
                 .query("UPDATE 书籍 SET 书籍状态 = '已租' WHERE 书籍号 = @bid");
             
             await transaction.commit();
+            logOperation('租书', `交易号: ${newId}, 用户 ${customerId} 租借了书籍 ${bookId}`);
             res.json({ message: '租书成功', transactionId: newId });
         } catch (err) {
             await transaction.rollback();
@@ -364,6 +392,7 @@ app.post('/api/buy', async (req, res) => {
                 .query("UPDATE 书籍 SET 书籍状态 = '已售' WHERE 书籍号 = @bid");
             
             await transaction.commit();
+            logOperation('买书', `交易号: ${newId}, 用户 ${customerId} 购买了书籍 ${bookId}`);
             res.json({ message: '买书成功', transactionId: newId });
         } catch (err) {
             await transaction.rollback();
@@ -374,10 +403,47 @@ app.post('/api/buy', async (req, res) => {
     }
 });
 
+// 新增功能：还书接口
+app.post('/api/return', async (req, res) => {
+    const { orderId, bookId } = req.body;
+    try {
+        if (!pool) await connectDB();
+        const transaction = new sql.Transaction(pool);
+        await transaction.begin();
+        try {
+            // 1. 更新租书登记表，标记归还时间
+            await new sql.Request(transaction)
+                .input('oid', sql.Int, orderId)
+                .input('returnDate', sql.DateTime, new Date())
+                .query("UPDATE 租书登记表 SET 归还日期 = @returnDate WHERE 交易号 = @oid");
+
+            // 2. 更新书籍状态为 空闲
+            await new sql.Request(transaction)
+                .input('bid', sql.Char(12), bookId)
+                .query("UPDATE 书籍 SET 书籍状态 = '空闲' WHERE 书籍号 = @bid");
+
+            await transaction.commit();
+            logOperation('还书', `交易号: ${orderId}, 书籍 ${bookId} 已归还`);
+            res.json({ message: '还书成功' });
+        } catch (err) {
+            await transaction.rollback();
+            throw err;
+        }
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// 账单查询接口
 app.get('/api/bills/rent', async (req, res) => {
     try {
         if (!pool) await connectDB();
-        const result = await pool.request().query('SELECT * FROM 租书结账单');
+        // 关键修改：关联查询以获取归还日期
+        const result = await pool.request().query(`
+            SELECT A.*, B.归还日期, B.预计天数
+            FROM 租书结账单 A 
+            LEFT JOIN 租书登记表 B ON A.交易号 = B.交易号
+        `);
         res.json(result.recordset);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -388,6 +454,17 @@ app.get('/api/bills/buy', async (req, res) => {
     try {
         if (!pool) await connectDB();
         const result = await pool.request().query('SELECT * FROM 买书结账单');
+        res.json(result.recordset);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// 新增功能：获取操作日志
+app.get('/api/logs', async (req, res) => {
+    try {
+        if (!pool) await connectDB();
+        const result = await pool.request().query('SELECT TOP 100 * FROM 操作日志 ORDER BY 操作时间 DESC');
         res.json(result.recordset);
     } catch (err) {
         res.status(500).json({ error: err.message });
