@@ -4,7 +4,8 @@ import LookUser from '@/views/LookUser.vue'
 import RentService from '@/views/Rent-BuyService.vue'
 import LookRentOrder from '@/views/LookRentOrder.vue'
 import LookSaleOrder from '@/views/LookSaleOrder.vue'
-import Dashboard from '@/views/Dashboard.vue' // 1. 引入组件
+import Dashboard from '@/views/Dashboard.vue'
+import SystemLogs from '@/views/SystemLogs.vue' // 引入组件
 import { createRouter, createWebHistory } from 'vue-router'
 
 const router = createRouter({
@@ -14,36 +15,15 @@ const router = createRouter({
       path: '/',
       name: 'index',
       component: Index,
-      redirect: '/dashboard', // 2. 默认跳转到仪表盘
+      redirect: '/dashboard',
       children: [
-        {
-          path: 'dashboard', // 3. 定义仪表盘路径
-          name: 'dashboard',
-          component: Dashboard
-        },
-        {
-          path: 'books',
-          name: 'books',
-          component: LookBook
-        },
-        {
-          path:'users',
-          name:'users',
-          component:LookUser
-        },{
-          path:'rent-buy',
-          name:'rent-buy',
-          component:RentService
-        },{
-          path:'rentorder',
-          name:'rentorder',
-          component:LookRentOrder
-        },
-        {
-          path:'saleorder',
-          name:'saleorder',
-          component:LookSaleOrder
-        }
+        { path: 'dashboard', name: 'dashboard', component: Dashboard },
+        { path: 'books', name: 'books', component: LookBook },
+        { path: 'users', name: 'users', component: LookUser },
+        { path: 'rent-buy', name: 'rent-buy', component: RentService },
+        { path: 'rentorder', name: 'rentorder', component: LookRentOrder },
+        { path: 'saleorder', name: 'saleorder', component: LookSaleOrder },
+        { path: 'logs', name: 'logs', component: SystemLogs } // 注册
       ]
     }
   ],
