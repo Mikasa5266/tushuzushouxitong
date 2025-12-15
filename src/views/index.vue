@@ -22,6 +22,9 @@ import { RouterLink } from 'vue-router';
 body{
   overflow: hidden;
 }
+.top_Inputsearch{
+  width: 50%;
+}
 </style>
 <style scoped>
 .wrapper {

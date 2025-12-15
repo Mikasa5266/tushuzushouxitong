@@ -1,7 +1,7 @@
 <template>
   <div class="table-scroll-wrapper">
     <List justify-content="center" align-items="center">
-      <InputSearch placeholder="请输入您想查询的图书名或作者" enter-button v-model:value="WhatSearch" style="width: 800px;"
+      <InputSearch class="top_Inputsearch" placeholder="请输入您想查询的图书名或作者" enter-button v-model:value="WhatSearch" 
         size="large" @search="onSearch"></InputSearch>
     </List>
     <Table :data-source="tempDS" :columns="columns" :scroll="{ x: 'max-content' }">

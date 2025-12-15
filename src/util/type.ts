@@ -30,3 +30,13 @@ export interface rentOrderTabel{
     rentDate:string,
     deposit:number
 }
+// 买书订单表格元素
+export interface saleOrderTabel{
+    key:string,
+    orderId:string,
+    customerId:string,
+    customerName:string,
+    bookId:string,
+    saleDate:string,
+    salePrice:number
+}

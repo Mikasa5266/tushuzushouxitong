@@ -1,7 +1,7 @@
 <template>
     <div>
         <List justify-content="center" align-items="center">
-            <InputSearch placeholder="请输入想要查询的用户名称" v-model:value="WhatSearch" @search="onSearch" style="width: 50%;"
+            <InputSearch class="top_Inputsearch" placeholder="请输入想要查询的用户名称" v-model:value="WhatSearch" @search="onSearch" "
                 size="large" enter-button>
             </InputSearch>
         </List>
