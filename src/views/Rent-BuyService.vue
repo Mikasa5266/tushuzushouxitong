@@ -14,11 +14,6 @@
                         </div>
                         
                         <FormItem>
-                            <!-- 
-                                升级点：
-                                1. option.value 绑定为 bookId (唯一键)
-                                2. 下拉列表展示更详细的信息
-                            -->
                             <AutoComplete 
                                 v-model:value="WhatSearchBook" 
                                 :options="optionsB" 
@@ -68,7 +63,6 @@
                                 </div>
                             </div>
                         </div>
-                        <!-- 未选择时的占位符 -->
                         <div class="info-card placeholder" v-else>
                             <span style="color: #9ca3af;">请搜索并选择一本具体的书籍</span>
                         </div>
@@ -90,7 +84,7 @@
             </div>
         </div>
 
-        <!-- 弹窗部分保持不变 -->
+        <!-- 用户确认弹窗 -->
         <Modal title="👤 用户信息确认" v-model:open="open" :footer="null" centered width="600px">
             <div class="modal-content">
                 <AutoComplete v-model:value="WhatSaerchCustomer" :options="optionsC" @search="onSearchC"
@@ -121,10 +115,15 @@
                             {{ targetCustomer?.IsMember }}
                         </span>
                     </div>
+                    <!-- 提示信息 -->
+                    <div v-if="targetCustomer?.IsMember !== '会员'" style="color: #ef4444; margin-top: 10px; font-size: 14px;">
+                        ⚠️ 非会员用户仅可购买图书，不可租借。
+                    </div>
                 </div>
 
                 <div class="modal-actions">
-                    <Button size="large" class="modal-btn rent-btn" :disabled="!targetCustomer" @click="rentBookButton">
+                    <!-- 关键修改：绑定 disabled 属性到 openRentButton -->
+                    <Button size="large" class="modal-btn rent-btn" :disabled="openRentButton || !targetCustomer" @click="rentBookButton">
                         📚 借书
                     </Button>
                     <Button size="large" class="modal-btn buy-btn" type="primary" :disabled="!targetCustomer" @click="buyBookButton">
@@ -134,7 +133,7 @@
             </div>
         </Modal>
 
-        <!-- 付款二维码 -->
+        <!-- 其他弹窗保持不变 -->
         <Modal :width="300" v-model:open="openfukuan" :footer="null" title="扫码付款" centered>
             <Space direction="vertical" align="center" style="width: 100%; padding: 20px;">
                 <QRCode :value="fukuan" :size="200"></QRCode>
@@ -142,7 +141,6 @@
             </Space>
         </Modal>
 
-        <!-- 确认租书订单弹窗 -->
         <Modal v-model:open="openRentdingdan" title="📝 确认租书订单" :footer="null" centered width="500px">
             <div class="confirm-box">
                 <div class="confirm-row">
@@ -177,7 +175,6 @@
             </div>
         </Modal>
 
-        <!-- 确认购书订单弹窗 -->
         <Modal v-model:open="openBuyOrder" title="🛍️ 确认购买订单" :footer="null" centered width="500px">
             <div class="confirm-box">
                 <div class="confirm-row">
@@ -215,7 +212,7 @@ const router = useRouter()
 
 // 接口定义
 interface OptionB {
-    value: string, // 这里现在存储 bookId
+    value: string, 
     bookName: string,
     authName: string,
 }
@@ -251,10 +248,13 @@ const optionsB = ref<OptionB[]>([])
 const optionsC = ref<OptionC[]>([])
 
 const books = ref<Book[]>([])
-const targetBook = ref<Book>() // 当前选中的具体那本书
+const targetBook = ref<Book>() 
 
 const customers = ref<Customer[]>([])
 const targetCustomer = ref<Customer>()
+
+// 控制租书按钮是否禁用
+const openRentButton = ref(true)
 
 onMounted(async () => {
     // 获取图书
@@ -285,9 +285,7 @@ onMounted(async () => {
     customers.value = thecustomers
 })
 
-// ---------------- 核心修改：图书搜索逻辑 ----------------
-
-// 计算搜索结果：现在支持按 ID、名称、作者搜索
+// 图书搜索逻辑
 const getFilteredBooks = () => {
     return books.value.filter((item) => {
         const searchText = WhatSearchBook.value.trim().toLowerCase();
@@ -297,44 +295,47 @@ const getFilteredBooks = () => {
         const matchName = item.bookName.toLowerCase().includes(searchText);
         const matchAuthor = item.bookAuthor.toLowerCase().includes(searchText);
         
-        // 只能租借/购买“空闲”状态的书
         const isAvailable = item.bookStatus === '空闲';
 
         return (matchId || matchName || matchAuthor) && isAvailable;
     });
 };
 
-// 构造下拉选项
 const handleSearchB = () => {
     const result = getFilteredBooks();
-    // 限制显示数量，防止卡顿
     const limitedResult = result.slice(0, 10); 
 
     optionsB.value = limitedResult.map((element) => ({
-        value: element.bookId, // 关键：value 绑定为唯一的 bookId
+        value: element.bookId, 
         bookName: element.bookName,
         authName: element.bookAuthor
     }));
 };
 
-// 选中逻辑：根据唯一的 bookId 查找
-const onSelectB = (value: any) => { // 修复：将参数类型改为 any 以兼容 AutoComplete 的 SelectHandler
-    // value 是 bookId
+const onSelectB = (value: any) => { 
     const foundBook = books.value.find(item => item.bookId === value);
     if (foundBook) {
         targetBook.value = foundBook;
-        WhatSearchBook.value = foundBook.bookName; // 选中后输入框显示书名
+        WhatSearchBook.value = foundBook.bookName; 
     }
 }
 
-// ---------------- 顾客搜索逻辑 ----------------
+// 顾客搜索逻辑
 const onSelectC = (value: any) => {
     WhatSaerchCustomer.value = value
     const result = customers.value.filter((item) => {
         return item.customerTelNum.includes(WhatSaerchCustomer.value) || item.customerName.includes(WhatSaerchCustomer.value)
     })
     targetCustomer.value = result[0]
+    
+    // 关键逻辑：如果不是会员，禁用租书按钮
+    if (targetCustomer.value && targetCustomer.value.IsMember === '会员') {
+        openRentButton.value = false; // 启用
+    } else {
+        openRentButton.value = true; // 禁用
+    }
 }
+
 const onSearchC = () => {
     const result = customers.value.filter((item) => {
         return item.customerTelNum.includes(WhatSaerchCustomer.value) || item.customerName.includes(WhatSaerchCustomer.value)
@@ -350,12 +351,16 @@ const onSearchC = () => {
     optionsC.value = temp.value
 }
 
-// ---------------- 业务逻辑 ----------------
+// 业务逻辑
 const openModal = () => {
     if(!targetBook.value) {
         message.warning("请先选择图书");
         return;
     }
+    // 重置状态
+    targetCustomer.value = undefined;
+    WhatSaerchCustomer.value = '';
+    openRentButton.value = true; // 默认禁用，直到选好人且是会员
     open.value = true
 }
 
@@ -372,13 +377,13 @@ const submitDingdan = async () => {
     try {
         await axios.post('http://localhost:3000/api/rent', {
             customerId: targetCustomer.value?.customerNum,
-            bookId: targetBook.value?.bookId, // 发送唯一的 ID
+            bookId: targetBook.value?.bookId, 
             rentDate: now,
             rentDays: timeLength.value,
             deposit: yajin.value
         })
         message.success('租书成功')
-        router.push('/') // 这里可以改为 router.push('/rentorder') 查看订单
+        router.push('/') 
     } catch(err) {
         message.error('租书失败')
     }
@@ -390,7 +395,7 @@ const submitSaleOrder = async ()=>{
     try {
         await axios.post('http://localhost:3000/api/buy',{
             customerId:targetCustomer.value?.customerNum,
-            bookId:targetBook.value?.bookId, // 发送唯一的 ID
+            bookId:targetBook.value?.bookId, 
             saleDate:now,
             salePrice:targetBook.value?.bookPrice,
             paymentStatus:'已支付'
@@ -403,6 +408,13 @@ const submitSaleOrder = async ()=>{
 }
 
 const rentBookButton = () => {
+    if (openRentButton.value) {
+        // 双重保险：如果按钮本来应该是禁用的但被点击了
+        if(targetCustomer.value?.IsMember !== '会员') {
+             message.warning("仅限会员租书");
+             return;
+        }
+    }
     if (!targetBook.value) {
         message.error("请先选择图书")
     } else if (!targetCustomer.value) {
@@ -474,7 +486,6 @@ const fukuan = ref("https://www.yuanshen.com/#/")
     color: #9ca3af;
 }
 
-/* 升级：AutoComplete 下拉选项样式 */
 .option-item {
     display: flex;
     justify-content: space-between;
@@ -547,7 +558,7 @@ const fukuan = ref("https://www.yuanshen.com/#/")
     font-weight: 600;
 }
 .info-item .highlight-id {
-    color: #d97706; /* 橙色强调ID */
+    color: #d97706; 
     font-family: monospace;
     font-size: 16px;
     font-weight: bold;
